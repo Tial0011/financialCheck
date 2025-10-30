@@ -7,22 +7,8 @@
     <link rel="stylesheet" href="index.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <h1>100L MBBS Financial Records</h1>
-        <p class="subtitle">Payment lists · Income & Expenditure tracking</p>
-      </div>
-      <div class="top-actions">
-        <button id="btnExportJSON" class="btn ghost">Export JSON</button>
-        <button id="btnImportJSON" class="btn ghost">Import JSON</button>
-        <button id="btnExportCSV" class="btn ghost">
-          Export Transactions CSV
-        </button>
-      </div>
-    </header>
-
-    <main class="container">
-      <!-- LEFT: Lists -->
+    <div class="container-root">
+      <!-- Left sidebar -->
       <aside class="card sidebar">
         <div class="card-head">
           <h2>Your Fee Lists</h2>
@@ -45,10 +31,50 @@
         </div>
       </aside>
 
-      <!-- RIGHT: Main -->
-      <section class="main">
-        <!-- top panel: fee info + summary -->
-        <div class="panel fee-panel">
+      <!-- Right main -->
+      <main class="main-area">
+        <!-- GLOBAL SUMMARY -->
+        <section class="card" style="margin-bottom: 12px">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 10px;
+            "
+          >
+            <div>
+              <h3 style="margin: 0; color: var(--blue)">Global Summary</h3>
+              <div class="muted-small">Across all lists</div>
+            </div>
+
+            <button id="btnPrintGlobal" class="btn success">
+              Print Global Summary (PDF)
+            </button>
+          </div>
+
+          <div
+            class="summary-cards"
+            style="margin-top: 10px; flex-wrap: wrap; gap: 12px"
+          >
+            <div class="card small-card">
+              <div class="card-title">Total Income</div>
+              <div id="globalTotalIncome">₦0</div>
+            </div>
+            <div class="card small-card">
+              <div class="card-title">Total Expenses</div>
+              <div id="globalTotalExpenses">₦0</div>
+            </div>
+            <div class="card small-card">
+              <div class="card-title">Net Balance</div>
+              <div id="globalNetBalance">₦0</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fee panel -->
+        <div class="panel fee-panel card">
           <div class="fee-left">
             <div class="fee-title" id="feeTitleDisplay">—</div>
             <div class="fee-amount muted" id="feeAmountDisplay">—</div>
@@ -70,19 +96,23 @@
                 <div id="netBalance">₦0</div>
               </div>
             </div>
-            <div class="controls">
+
+            <div class="controls" style="margin-top: 10px">
               <select id="printSelect" class="input">
                 <option value="all">Print: All</option>
                 <option value="paid">Print: Paid only</option>
                 <option value="not_paid">Print: Not paid only</option>
               </select>
               <button id="btnPrint" class="btn success">Print List</button>
+              <button id="btnExportJSON" class="btn ghost">Export JSON</button>
+              <button id="btnImportJSON" class="btn ghost">Import JSON</button>
+              <button id="btnExportCSV" class="btn ghost">Export TX CSV</button>
             </div>
           </div>
         </div>
 
         <!-- Names card -->
-        <div class="card">
+        <section class="card">
           <div class="card-head">
             <h3>Add / Manage Names</h3>
             <div class="muted">
@@ -117,10 +147,10 @@
               <tbody id="namesTbody"></tbody>
             </table>
           </div>
-        </div>
+        </section>
 
         <!-- Transactions card -->
-        <div class="card">
+        <section class="card">
           <div class="card-head">
             <h3>Income & Expenditure</h3>
             <div class="muted">
@@ -187,9 +217,9 @@
               <tbody id="txTbody"></tbody>
             </table>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
 
     <!-- Modal -->
     <div id="modalBackdrop" class="modal-backdrop" hidden>
