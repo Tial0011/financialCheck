@@ -90,10 +90,14 @@ function renderGlobalSummary() {
   const totalLists = lists.length;
   const totalNames = lists.reduce((s, l) => s + l.names.length, 0);
 
-  // Calculate income as total amount (paid names × fee amount)
+  // Calculate income: paid names × fee amount + income transactions
   const totalIncome = lists.reduce((s, l) => {
     const paidCount = l.names.filter((n) => n.status === "paid").length;
-    return s + paidCount * l.amount;
+    const nameIncome = paidCount * l.amount;
+    const txIncome = (l.txs || [])
+      .filter((t) => t.type === "income")
+      .reduce((ss, t) => ss + Number(t.amount || 0), 0);
+    return s + nameIncome + txIncome;
   }, 0);
 
   const totalExpenses = lists.reduce(
@@ -101,9 +105,10 @@ function renderGlobalSummary() {
       s +
       (l.txs || [])
         .filter((t) => t.type === "expense")
-        .reduce((ss, t) => ss + Number(t.amount), 0),
+        .reduce((ss, t) => ss + Number(t.amount || 0), 0),
     0
   );
+
   const net = totalIncome - totalExpenses;
 
   globalTotalLists.textContent = totalLists;
@@ -112,7 +117,6 @@ function renderGlobalSummary() {
   globalTotalExpenses.textContent = numberWithCommas(totalExpenses);
   globalNetBalance.textContent = numberWithCommas(net);
 }
-
 /* ---------- modal helper ---------- */
 let modalResolve = null;
 
