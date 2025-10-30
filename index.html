@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>100L MBBS Financial Records</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>100L MBBS Financial Records</h1>
+        <p class="subtitle">Payment lists · Income & Expenditure tracking</p>
+      </div>
+      <div class="top-actions">
+        <button id="btnExportJSON" class="btn ghost">Export JSON</button>
+        <button id="btnImportJSON" class="btn ghost">Import JSON</button>
+        <button id="btnExportCSV" class="btn ghost">
+          Export Transactions CSV
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- LEFT: Lists -->
+      <aside class="card sidebar">
+        <div class="card-head">
+          <h2>Your Fee Lists</h2>
+          <div class="muted">Create a list per fee (e.g., Exam Fee)</div>
+        </div>
+
+        <div id="lists" class="lists"></div>
+
+        <div class="actions-row">
+          <button id="btnNew" class="btn primary">+ New List</button>
+          <button id="btnDuplicate" class="btn ghost">Duplicate</button>
+          <button id="btnDeleteList" class="btn danger">Delete</button>
+        </div>
+
+        <hr />
+
+        <div class="small">Saved lists summary</div>
+        <div id="summary" class="muted-small">
+          No lists yet — create one to begin.
+        </div>
+      </aside>
+
+      <!-- RIGHT: Main -->
+      <section class="main">
+        <!-- top panel: fee info + summary -->
+        <div class="panel fee-panel">
+          <div class="fee-left">
+            <div class="fee-title" id="feeTitleDisplay">—</div>
+            <div class="fee-amount muted" id="feeAmountDisplay">—</div>
+            <div class="muted-small" id="listDate">—</div>
+          </div>
+
+          <div class="fee-right">
+            <div class="summary-cards">
+              <div class="card small-card">
+                <div class="card-title">Total Income</div>
+                <div id="totalIncome">₦0</div>
+              </div>
+              <div class="card small-card">
+                <div class="card-title">Total Expenses</div>
+                <div id="totalExpenses">₦0</div>
+              </div>
+              <div class="card small-card">
+                <div class="card-title">Net Balance</div>
+                <div id="netBalance">₦0</div>
+              </div>
+            </div>
+            <div class="controls">
+              <select id="printSelect" class="input">
+                <option value="all">Print: All</option>
+                <option value="paid">Print: Paid only</option>
+                <option value="not_paid">Print: Not paid only</option>
+              </select>
+              <button id="btnPrint" class="btn success">Print List</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Names card -->
+        <div class="card">
+          <div class="card-head">
+            <h3>Add / Manage Names</h3>
+            <div class="muted">
+              Type a name and press Enter or click Add. Edit or delete as
+              needed.
+            </div>
+          </div>
+
+          <div class="add-row">
+            <input
+              id="nameInput"
+              class="input"
+              placeholder="Type full name & press Enter"
+            />
+            <button id="btnAddName" class="btn primary">Add</button>
+            <button id="btnClearNotPaid" class="btn ghost">
+              Clear Not Paid
+            </button>
+          </div>
+
+          <div class="table-wrap">
+            <table id="namesTable" aria-live="polite">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Fee Title</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="namesTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Transactions card -->
+        <div class="card">
+          <div class="card-head">
+            <h3>Income & Expenditure</h3>
+            <div class="muted">
+              Record incoming payments or expenses for this fee/list.
+            </div>
+          </div>
+
+          <form id="txForm" class="tx-form" onsubmit="return false;">
+            <select id="txType" class="input" aria-label="Type">
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+            <input
+              id="txAmount"
+              class="input"
+              placeholder="Amount (e.g., 2500)"
+              inputmode="numeric"
+            />
+            <input
+              id="txCategory"
+              class="input"
+              placeholder="Category (e.g., Bank, Cash, Supplies)"
+            />
+            <input id="txDate" class="input" type="date" />
+            <input
+              id="txDesc"
+              class="input"
+              placeholder="Description (optional)"
+            />
+            <button id="btnAddTx" class="btn primary">Add Transaction</button>
+          </form>
+
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-top: 8px;
+            "
+          >
+            <select id="txFilterType" class="input" style="min-width: 130px">
+              <option value="all">Show: All</option>
+              <option value="income">Income</option>
+              <option value="expense">Expenses</option>
+            </select>
+            <input id="txFilterFrom" class="input" type="date" />
+            <input id="txFilterTo" class="input" type="date" />
+            <button id="btnApplyTxFilter" class="btn ghost">Apply</button>
+            <button id="btnClearTxFilter" class="btn ghost">Clear</button>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 12px">
+            <table id="txTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="txTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="modalBackdrop" class="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 id="modalTitle">Modal</h3>
+        <p id="modalDesc">Description</p>
+        <div id="modalBody"></div>
+        <div class="modal-actions">
+          <button id="modalCancel" class="btn ghost">Cancel</button>
+          <button id="modalConfirm" class="btn primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="index.js"></script>
+  </body>
+</html>
