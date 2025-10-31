@@ -1,4 +1,7 @@
-// index.js - simplified: no Names UI (only transactions + global summary)
+// index.js — Firebase Synced MBBS Financial Records
+
+import { db, ref, set, onValue } from "./firebase.js";
+
 // storage key
 const storageKey = "paymentLists_v3";
 
@@ -13,6 +16,7 @@ const numberWithCommas = (x) => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
 // state
 let state = { lists: [], activeListId: null };
+const userPath = "users/demoUser/state"; // 👈 change "demoUser" later if you add authentication
 
 // DOM refs
 const listsEl = $("#lists");
@@ -52,19 +56,31 @@ const globalTotalIncome = $("#globalTotalIncome");
 const globalTotalExpenses = $("#globalTotalExpenses");
 const globalNetBalance = $("#globalNetBalance");
 
-// load/save
+// 🔄 Load + Sync with Firebase
 function load() {
+  // Load from localStorage
   try {
     const raw = localStorage.getItem(storageKey);
     if (raw) state = JSON.parse(raw);
   } catch (e) {
-    console.error("Failed to load state", e);
     state = { lists: [], activeListId: null };
   }
+
+  // Sync from Firebase (live listener)
+  onValue(ref(db, userPath), (snapshot) => {
+    const cloudData = snapshot.val();
+    if (cloudData) {
+      state = cloudData;
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      render();
+    }
+  });
 }
 
+// Save to both localStorage + Firebase
 function save() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+  set(ref(db, userPath), state);
   render();
 }
 
@@ -77,22 +93,12 @@ function createList(title = "New Fee") {
   const id = "L_" + uid(6);
   const list = {
     id,
-    title: title || "New Fee",
+    title,
     createdAt: new Date().toISOString(),
-    txs: [], // {id,type,amount,category,date,desc}
+    txs: [],
   };
   state.lists.unshift(list);
   state.activeListId = id;
-  save();
-}
-
-function deleteList(id) {
-  const list = state.lists.find((l) => l.id === id);
-  if (!list) return;
-  if (!confirm(`Delete "${list.title}"? This cannot be undone.`)) return;
-  state.lists = state.lists.filter((l) => l.id !== id);
-  if (state.activeListId === id)
-    state.activeListId = state.lists[0]?.id || null;
   save();
 }
 
@@ -118,6 +124,15 @@ function deleteTx(id) {
   const list = getActiveList();
   if (!list) return;
   list.txs = list.txs.filter((t) => t.id !== id);
+  save();
+}
+
+// NEW: Delete a fee list itself
+function deleteList(id) {
+  if (!confirm("Delete this entire fee list?")) return;
+  state.lists = state.lists.filter((l) => l.id !== id);
+  if (state.activeListId === id)
+    state.activeListId = state.lists[0]?.id || null;
   save();
 }
 
@@ -159,29 +174,27 @@ function renderLists() {
       "list-item" + (l.id === state.activeListId ? " active" : "");
     div.dataset.id = l.id;
     div.innerHTML = `
-      <div class="list-info" style="flex:1;cursor:pointer;">
+      <div>
         <strong>${escapeHtml(l.title)}</strong>
         <div class="small">${new Date(l.createdAt).toLocaleDateString()}</div>
       </div>
-      <div class="list-actions" style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:6px">
         <div class="small">₦${numberWithCommas(totals.net)}</div>
-        <button class="btn-delete-list" title="Delete list" data-id="${
-          l.id
-        }" style="background:none;border:none;color:red;font-size:18px;cursor:pointer;">🗑️</button>
+        <button class="btn ghost btn-del-list" style="color:red;border:none;font-weight:bold;">🗑️</button>
       </div>
     `;
-    div.querySelector(".list-info").addEventListener("click", () => {
-      state.activeListId = l.id;
-      save();
-    });
-    div.querySelector(".btn-delete-list").addEventListener("click", (e) => {
+    div.querySelector(".btn-del-list").addEventListener("click", (e) => {
       e.stopPropagation();
       deleteList(l.id);
+    });
+    div.addEventListener("click", () => {
+      state.activeListId = l.id;
+      save();
     });
     listsEl.appendChild(div);
   });
 
-  summaryEl.textContent = `${state.lists.length} fee list(s) saved`;
+  summaryEl.textContent = `${state.lists.length} list(s) saved`;
 }
 
 function renderActive() {
@@ -196,19 +209,18 @@ function renderActive() {
     netBalanceEl.textContent = "₦0";
     return;
   }
+
   feeTitleDisplay.textContent = active.title;
   feeAmountDisplay.textContent = `Transactions: ${active.txs.length}`;
   listDate.textContent =
     "Created: " + new Date(active.createdAt).toLocaleString();
 
-  // transactions table
   const filterType = txFilterType?.value || "all";
   const from = txFilterFrom?.value || "";
   const to = txFilterTo?.value || "";
 
   let txs = active.txs || [];
-  if (filterType && filterType !== "all")
-    txs = txs.filter((t) => t.type === filterType);
+  if (filterType !== "all") txs = txs.filter((t) => t.type === filterType);
   if (from) txs = txs.filter((t) => t.date >= from);
   if (to) txs = txs.filter((t) => t.date <= to);
 
@@ -224,14 +236,12 @@ function renderActive() {
         <td>₦${numberWithCommas(t.amount)}</td>
         <td>${escapeHtml(t.category)}</td>
         <td>${escapeHtml(t.desc)}</td>
-        <td>
-          <button class="btn-delete-tx" data-id="${
-            t.id
-          }" style="background:none;border:none;color:red;font-size:16px;cursor:pointer;">🗑️</button>
-        </td>
+        <td><button class="btn ghost" style="color:red" data-id="${
+          t.id
+        }">🗑️</button></td>
       `;
-      tr.querySelector(".btn-delete-tx").addEventListener("click", () => {
-        if (confirm("Delete this transaction?")) deleteTx(t.id);
+      tr.querySelector("button").addEventListener("click", () => {
+        deleteTx(t.id);
       });
       txTbody.appendChild(tr);
     });
@@ -260,20 +270,17 @@ function render() {
   renderGlobalSummary();
 }
 
-// helpers
 function escapeHtml(str) {
   if (!str) return "";
-  return String(str).replace(
-    /[&<>"']/g,
-    (m) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[m])
-  );
+  return String(str).replace(/[&<>"']/g, (m) => {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[m];
+  });
 }
 
 // init
@@ -287,265 +294,27 @@ btnNew.addEventListener("click", () => {
   createList(title);
 });
 
-// Add Transaction
 btnAddTx.addEventListener("click", () => {
   const list = getActiveList();
-  if (!list) {
-    alert("Create a fee list first.");
-    return;
-  }
+  if (!list) return alert("Create a fee list first.");
+
   const type = txType.value;
   const amount = Number(txAmount.value);
   const category = txCategory.value.trim();
   const date = txDate.value || new Date().toISOString().slice(0, 10);
   const desc = txDesc.value.trim();
 
-  if (!amount || isNaN(amount) || amount <= 0) {
-    alert("Enter a valid amount.");
-    return;
-  }
+  if (!amount || isNaN(amount) || amount <= 0)
+    return alert("Enter a valid amount.");
 
-  const ok = addTransactionToActive({ type, amount, category, date, desc });
-  if (!ok) {
-    alert("Failed to add transaction.");
-    return;
-  }
-
-  // clear form
-  txAmount.value = "";
-  txCategory.value = "";
-  txDate.value = "";
-  txDesc.value = "";
+  addTransactionToActive({ type, amount, category, date, desc });
+  txAmount.value = txCategory.value = txDate.value = txDesc.value = "";
 });
 
-// filters
 btnApplyTxFilter.addEventListener("click", render);
 btnClearTxFilter.addEventListener("click", () => {
   txFilterType.value = "all";
   txFilterFrom.value = "";
   txFilterTo.value = "";
   render();
-});
-
-// export/import/print buttons remain same as before...
-
-// export/import JSON
-btnExportJSON.addEventListener("click", () => {
-  const payload = JSON.stringify(state, null, 2);
-  const blob = new Blob([payload], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `mbbs_financial_backup_${new Date()
-    .toISOString()
-    .slice(0, 10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-btnImportJSON.addEventListener("click", () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".json,application/json";
-  input.onchange = () => {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const obj = JSON.parse(reader.result);
-        if (!obj || !Array.isArray(obj.lists))
-          throw new Error("Invalid format");
-        state = obj;
-        // normalize minimal structure
-        state.lists = state.lists.map((l) => ({
-          id: l.id || "L_" + uid(6),
-          title: l.title || "Imported Fee",
-          createdAt: l.createdAt || new Date().toISOString(),
-          txs: Array.isArray(l.txs)
-            ? l.txs.map((t) => ({
-                id: t.id || "T_" + uid(6),
-                type: t.type === "expense" ? "expense" : "income",
-                amount: Number(t.amount) || 0,
-                category: t.category || "",
-                date: t.date || new Date().toISOString().slice(0, 10),
-                desc: t.desc || "",
-              }))
-            : [],
-        }));
-        if (!state.activeListId && state.lists.length)
-          state.activeListId = state.lists[0].id;
-        save();
-        alert("Import successful");
-      } catch (err) {
-        alert("Failed to import JSON: " + err.message);
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-});
-
-// export transactions CSV for active list
-btnExportTXCSV.addEventListener("click", () => {
-  const list = getActiveList();
-  if (!list) {
-    alert("No active list");
-    return;
-  }
-  const rows = [["Date", "Type", "Amount", "Category", "Description"]];
-  (list.txs || []).forEach((t) =>
-    rows.push([t.date, t.type, t.amount, t.category, t.desc])
-  );
-  const csv = rows
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${(list.title || "transactions").replace(/\s+/g, "_")}_tx.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-// print active list
-btnPrintList.addEventListener("click", () => {
-  const list = getActiveList();
-  if (!list) {
-    alert("No active list");
-    return;
-  }
-  const totals = calcTotals(list);
-
-  const incomeTxs = (list.txs || []).filter((t) => t.type === "income");
-  const expenseTxs = (list.txs || []).filter((t) => t.type === "expense");
-
-  const headerHtml = `<h2>100L MBBS Financial Records</h2>
-    <div style="color:#6b7280;margin-bottom:8px">List: ${escapeHtml(
-      list.title
-    )}</div>
-    <div style="color:#6b7280;margin-bottom:8px">Generated: ${new Date().toLocaleString()}</div>`;
-
-  let bodyHtml = `<div style="margin-top:12px">`;
-  bodyHtml += `<div style="margin-bottom:10px"><strong>Total Income:</strong> ₦${numberWithCommas(
-    totals.income
-  )}</div>`;
-  bodyHtml += `<div style="margin-bottom:10px"><strong>Income sources:</strong><ul>`;
-  if (incomeTxs.length) {
-    incomeTxs.forEach((t) => {
-      bodyHtml += `<li>${escapeHtml(
-        t.category || t.desc || "Income"
-      )} — ₦${numberWithCommas(t.amount)}</li>`;
-    });
-  } else {
-    bodyHtml += `<li>—</li>`;
-  }
-  bodyHtml += `</ul></div>`;
-
-  bodyHtml += `<div style="margin-bottom:10px"><strong>Total Expenses:</strong> ₦${numberWithCommas(
-    totals.expense
-  )}</div>`;
-  bodyHtml += `<div style="margin-bottom:10px"><strong>Expenditures:</strong><ul>`;
-  if (expenseTxs.length) {
-    expenseTxs.forEach((t) => {
-      bodyHtml += `<li>${escapeHtml(
-        t.category || t.desc || "Expense"
-      )} — ₦${numberWithCommas(t.amount)}</li>`;
-    });
-  } else {
-    bodyHtml += `<li>—</li>`;
-  }
-  bodyHtml += `</ul></div>`;
-
-  bodyHtml += `<div style="margin-top:14px"><strong>Net Balance:</strong> ₦${numberWithCommas(
-    totals.net
-  )}</div>`;
-  bodyHtml += `</div>`;
-
-  const win = window.open("", "_blank", "width=900,height=700");
-  win.document
-    .write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(
-    list.title
-  )}</title>
-    <style>body{font-family:Inter,Arial;padding:24px;color:#111}h2{margin:0 0 6px 0}ul{margin:6px 0 12px 18px}</style></head><body>${headerHtml}${bodyHtml}<script>window.print()</script></body></html>`);
-  win.document.close();
-});
-
-// print global summary (detailed)
-btnPrintGlobal.addEventListener("click", () => {
-  const headerHtml = `<h2>100L MBBS Financial Records</h2>
-    <div style="color:#6b7280;margin-bottom:8px">Generated: ${new Date().toLocaleString()}</div>`;
-
-  let bodyHtml = "";
-
-  state.lists.forEach((list) => {
-    const totals = calcTotals(list);
-    const incomeTxs = (list.txs || []).filter((t) => t.type === "income");
-    const expenseTxs = (list.txs || []).filter((t) => t.type === "expense");
-
-    bodyHtml += `<section style="margin-bottom:20px;padding:12px;border:1px solid #eee;border-radius:8px">
-      <h3 style="margin:0 0 6px 0;color:#2563eb">${escapeHtml(list.title)}</h3>
-      <div style="margin-bottom:8px"><strong>Total Income:</strong> ₦${numberWithCommas(
-        totals.income
-      )}</div>
-      <div style="margin-bottom:8px"><strong>Income sources:</strong>
-        <ul>`;
-    if (incomeTxs.length) {
-      incomeTxs.forEach((t) => {
-        bodyHtml += `<li>${escapeHtml(
-          t.category || t.desc || "Income"
-        )} — ₦${numberWithCommas(t.amount)}</li>`;
-      });
-    } else {
-      bodyHtml += `<li>—</li>`;
-    }
-    bodyHtml += `</ul></div>`;
-
-    bodyHtml += `<div style="margin-bottom:8px"><strong>Total Expenses:</strong> ₦${numberWithCommas(
-      totals.expense
-    )}</div>
-      <div style="margin-bottom:8px"><strong>Expenditures:</strong>
-        <ul>`;
-    if (expenseTxs.length) {
-      expenseTxs.forEach((t) => {
-        bodyHtml += `<li>${escapeHtml(
-          t.category || t.desc || "Expense"
-        )} — ₦${numberWithCommas(t.amount)}</li>`;
-      });
-    } else {
-      bodyHtml += `<li>—</li>`;
-    }
-    bodyHtml += `</ul></div>`;
-
-    bodyHtml += `<div style="margin-top:6px"><strong>Net Balance:</strong> ₦${numberWithCommas(
-      totals.net
-    )}</div>`;
-    bodyHtml += `</section>`;
-  });
-
-  // overall totals
-  const global = calcGlobalTotals();
-  bodyHtml += `<section style="margin-top:8px;padding:12px;border-top:2px solid #eee">
-    <h3 style="margin:0 0 6px 0">Overall Totals</h3>
-    <div><strong>Total Income:</strong> ₦${numberWithCommas(
-      global.income
-    )}</div>
-    <div><strong>Total Expenses:</strong> ₦${numberWithCommas(
-      global.expense
-    )}</div>
-    <div style="margin-top:6px"><strong>Net Balance:</strong> ₦${numberWithCommas(
-      global.net
-    )}</div>
-  </section>`;
-
-  const win = window.open("", "_blank", "width=1000,height=800");
-  win.document
-    .write(`<!doctype html><html><head><meta charset="utf-8"/><title>Global Summary</title>
-    <style>body{font-family:Inter,Arial;padding:24px;color:#111}h2{margin:0 0 6px 0}section{background:#fff}</style></head><body>${headerHtml}${bodyHtml}<script>window.print()</script></body></html>`);
-  win.document.close();
 });
