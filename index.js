@@ -86,6 +86,16 @@ function createList(title = "New Fee") {
   save();
 }
 
+function deleteList(id) {
+  const list = state.lists.find((l) => l.id === id);
+  if (!list) return;
+  if (!confirm(`Delete "${list.title}"? This cannot be undone.`)) return;
+  state.lists = state.lists.filter((l) => l.id !== id);
+  if (state.activeListId === id)
+    state.activeListId = state.lists[0]?.id || null;
+  save();
+}
+
 function addTransactionToActive({ type, amount, category, date, desc }) {
   const list = getActiveList();
   if (!list) return false;
@@ -148,22 +158,30 @@ function renderLists() {
     div.className =
       "list-item" + (l.id === state.activeListId ? " active" : "");
     div.dataset.id = l.id;
-    div.innerHTML = `<div><strong>${escapeHtml(
-      l.title
-    )}</strong><div class="small">${new Date(
-      l.createdAt
-    ).toLocaleDateString()}</div></div><div class="small">₦${numberWithCommas(
-      totals.net
-    )}</div>`;
-    div.addEventListener("click", () => {
+    div.innerHTML = `
+      <div class="list-info" style="flex:1;cursor:pointer;">
+        <strong>${escapeHtml(l.title)}</strong>
+        <div class="small">${new Date(l.createdAt).toLocaleDateString()}</div>
+      </div>
+      <div class="list-actions" style="display:flex;align-items:center;gap:8px;">
+        <div class="small">₦${numberWithCommas(totals.net)}</div>
+        <button class="btn-delete-list" title="Delete list" data-id="${
+          l.id
+        }" style="background:none;border:none;color:red;font-size:18px;cursor:pointer;">🗑️</button>
+      </div>
+    `;
+    div.querySelector(".list-info").addEventListener("click", () => {
       state.activeListId = l.id;
       save();
+    });
+    div.querySelector(".btn-delete-list").addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteList(l.id);
     });
     listsEl.appendChild(div);
   });
 
-  const totalNames = state.lists.length;
-  summaryEl.textContent = `${state.lists.length} list(s) • ${state.lists.length} saved`;
+  summaryEl.textContent = `${state.lists.length} fee list(s) saved`;
 }
 
 function renderActive() {
@@ -207,11 +225,9 @@ function renderActive() {
         <td>${escapeHtml(t.category)}</td>
         <td>${escapeHtml(t.desc)}</td>
         <td>
-          <div class="row-actions">
-            <button class="btn ghost btn-delete-tx" data-id="${
-              t.id
-            }">Delete</button>
-          </div>
+          <button class="btn-delete-tx" data-id="${
+            t.id
+          }" style="background:none;border:none;color:red;font-size:16px;cursor:pointer;">🗑️</button>
         </td>
       `;
       tr.querySelector(".btn-delete-tx").addEventListener("click", () => {
@@ -247,15 +263,17 @@ function render() {
 // helpers
 function escapeHtml(str) {
   if (!str) return "";
-  return String(str).replace(/[&<>"']/g, function (m) {
-    return {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    }[m];
-  });
+  return String(str).replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[m])
+  );
 }
 
 // init
@@ -263,12 +281,13 @@ load();
 render();
 
 // events
-btnNew.addEventListener("click", async () => {
+btnNew.addEventListener("click", () => {
   const title = prompt("Create new fee list (title):");
   if (!title) return;
   createList(title);
 });
 
+// Add Transaction
 btnAddTx.addEventListener("click", () => {
   const list = getActiveList();
   if (!list) {
@@ -299,6 +318,7 @@ btnAddTx.addEventListener("click", () => {
   txDesc.value = "";
 });
 
+// filters
 btnApplyTxFilter.addEventListener("click", render);
 btnClearTxFilter.addEventListener("click", () => {
   txFilterType.value = "all";
@@ -306,6 +326,8 @@ btnClearTxFilter.addEventListener("click", () => {
   txFilterTo.value = "";
   render();
 });
+
+// export/import/print buttons remain same as before...
 
 // export/import JSON
 btnExportJSON.addEventListener("click", () => {
