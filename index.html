@@ -19,8 +19,6 @@
 
         <div class="actions-row">
           <button id="btnNew" class="btn primary">+ New List</button>
-          <button id="btnDuplicate" class="btn ghost">Duplicate</button>
-          <button id="btnDeleteList" class="btn danger">Delete</button>
         </div>
 
         <hr />
@@ -46,12 +44,16 @@
           >
             <div>
               <h3 style="margin: 0; color: var(--blue)">Global Summary</h3>
-              <div class="muted-small">Across all lists</div>
+              <div class="muted-small">Across all fee lists</div>
             </div>
 
-            <button id="btnPrintGlobal" class="btn success">
-              Print Global Summary (PDF)
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <button id="btnPrintGlobal" class="btn success">
+                Print Global Summary (PDF)
+              </button>
+              <button id="btnExportJSON" class="btn ghost">Export JSON</button>
+              <button id="btnImportJSON" class="btn ghost">Import JSON</button>
+            </div>
           </div>
 
           <div
@@ -98,63 +100,20 @@
             </div>
 
             <div class="controls" style="margin-top: 10px">
-              <select id="printSelect" class="input">
-                <option value="all">Print: All</option>
-                <option value="paid">Print: Paid only</option>
-                <option value="not_paid">Print: Not paid only</option>
-              </select>
-              <button id="btnPrint" class="btn success">Print List</button>
-              <button id="btnExportJSON" class="btn ghost">Export JSON</button>
-              <button id="btnImportJSON" class="btn ghost">Import JSON</button>
-              <button id="btnExportCSV" class="btn ghost">Export TX CSV</button>
+              <button id="btnPrintList" class="btn success">Print List</button>
+              <button id="btnExportTXCSV" class="btn ghost">
+                Export TX CSV
+              </button>
             </div>
           </div>
         </div>
-
-        <!-- Names card -->
-        <section class="card">
-          <div class="card-head">
-            <h3>Add / Manage Names</h3>
-            <div class="muted">
-              Type a name and press Enter or click Add. Edit or delete as
-              needed.
-            </div>
-          </div>
-
-          <div class="add-row">
-            <input
-              id="nameInput"
-              class="input"
-              placeholder="Type full name & press Enter"
-            />
-            <button id="btnAddName" class="btn primary">Add</button>
-            <button id="btnClearNotPaid" class="btn ghost">
-              Clear Not Paid
-            </button>
-          </div>
-
-          <div class="table-wrap">
-            <table id="namesTable" aria-live="polite">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Fee Title</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="namesTbody"></tbody>
-            </table>
-          </div>
-        </section>
 
         <!-- Transactions card -->
         <section class="card">
           <div class="card-head">
             <h3>Income & Expenditure</h3>
             <div class="muted">
-              Record incoming payments or expenses for this fee/list.
+              Record incoming payments or expenses for the active fee list.
             </div>
           </div>
 
