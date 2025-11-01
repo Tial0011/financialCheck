@@ -318,3 +318,120 @@ btnClearTxFilter.addEventListener("click", () => {
   txFilterTo.value = "";
   render();
 });
+// ----------------------------------------------
+// 🖨️ PRINT & EXPORT FEATURES
+// ----------------------------------------------
+
+// Print the active list
+btnPrintList.addEventListener("click", () => {
+  const list = getActiveList();
+  if (!list) return alert("No active list to print.");
+
+  const totals = calcTotals(list);
+  const html = `
+    <h2>${escapeHtml(list.title)}</h2>
+    <p><strong>Created:</strong> ${new Date(
+      list.createdAt
+    ).toLocaleString()}</p>
+    <p><strong>Total Income:</strong> ₦${numberWithCommas(totals.income)}</p>
+    <p><strong>Total Expenses:</strong> ₦${numberWithCommas(totals.expense)}</p>
+    <p><strong>Net Balance:</strong> ₦${numberWithCommas(totals.net)}</p>
+    <hr>
+    <h3>Transactions</h3>
+    <ul>
+      ${list.txs
+        .map(
+          (t) => `
+        <li>
+          <strong>${
+            t.type === "income" ? "Income" : "Expense"
+          }</strong> — ₦${numberWithCommas(t.amount)} 
+          (${escapeHtml(t.category)}${t.desc ? ": " + escapeHtml(t.desc) : ""})
+          <em> [${t.date}]</em>
+        </li>
+      `
+        )
+        .join("")}
+    </ul>
+  `;
+  const win = window.open("", "_blank");
+  win.document.write(
+    `<html><head><title>${list.title}</title></head><body>${html}</body></html>`
+  );
+  win.document.close();
+  win.print();
+});
+
+// Print the global summary
+btnPrintGlobal.addEventListener("click", () => {
+  const g = calcGlobalTotals();
+
+  const html = `
+    <h2>Global Summary</h2>
+    <p><strong>Total Income:</strong> ₦${numberWithCommas(g.income)}</p>
+    <p><strong>Total Expenses:</strong> ₦${numberWithCommas(g.expense)}</p>
+    <p><strong>Net Balance:</strong> ₦${numberWithCommas(g.net)}</p>
+    <hr>
+    <h3>All Fee Lists</h3>
+    <ul>
+      ${state.lists
+        .map((l) => {
+          const t = calcTotals(l);
+          return `
+          <li>
+            <strong>${escapeHtml(l.title)}</strong><br>
+            Income: ₦${numberWithCommas(t.income)} |
+            Expenses: ₦${numberWithCommas(t.expense)} |
+            Net: ₦${numberWithCommas(t.net)}
+          </li>`;
+        })
+        .join("")}
+    </ul>
+  `;
+  const win = window.open("", "_blank");
+  win.document.write(
+    `<html><head><title>Global Summary</title></head><body>${html}</body></html>`
+  );
+  win.document.close();
+  win.print();
+});
+// Export all data as JSON
+btnExportJSON.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mbbs-financial-data.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Import JSON backup
+btnImportJSON.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.lists) {
+          state = data;
+          save();
+          alert("Import successful!");
+        } else {
+          alert("Invalid file format.");
+        }
+      } catch {
+        alert("Error reading file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+});
