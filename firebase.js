@@ -1,6 +1,7 @@
 // Import from CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
 // Config
 const firebaseConfig = {
@@ -15,8 +16,10 @@ const firebaseConfig = {
   measurementId: "G-TQSV6S6TJX",
 };
 
-// Init
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const db = getDatabase(app);
 
-console.log("Firebase initialized ✅");
+// Export database so index.js can use it
+export { db };

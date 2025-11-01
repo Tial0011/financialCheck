@@ -1,6 +1,6 @@
 // index.js — Firebase Synced MBBS Financial Records
 
-import { db, ref, set, onValue } from "./firebase.js";
+import { db } from "./firebase.js";
 
 // storage key
 const storageKey = "paymentLists_v3";
