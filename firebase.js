@@ -1,16 +1,18 @@
-// firebase.js — for Netlify browser builds
+// firebase.js — Firebase Realtime Database config and exports for MBBS Financial Records
 
-// Import Firebase SDKs (from CDN)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
+// Import Firebase SDK modules from CDN (browser-safe)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import {
   getDatabase,
   ref,
-  onValue,
   set,
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+  onValue,
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
 
-// Your config
+// Optional: analytics (not needed but harmless)
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-analytics.js";
+
+// Your Firebase config (you already created this)
 const firebaseConfig = {
   apiKey: "AIzaSyADSxtX0bNk8PKOMcVmAqWOgIXk6f5vNsI",
   authDomain: "mbbs-financial.firebaseapp.com",
@@ -25,8 +27,10 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+getAnalytics(app);
+
+// Initialize Realtime Database
 const db = getDatabase(app);
 
-// Export everything your index.js needs
-export { db, ref, onValue, set };
+// Export database utilities for index.js
+export { db, ref, set, onValue };
