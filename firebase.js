@@ -1,9 +1,16 @@
-// Import from CDN
+// firebase.js — for Netlify browser builds
+
+// Import Firebase SDKs (from CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  set,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-// Config
+// Your config
 const firebaseConfig = {
   apiKey: "AIzaSyADSxtX0bNk8PKOMcVmAqWOgIXk6f5vNsI",
   authDomain: "mbbs-financial.firebaseapp.com",
@@ -21,5 +28,5 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
-// Export database so index.js can use it
-export { db };
+// Export everything your index.js needs
+export { db, ref, onValue, set };
